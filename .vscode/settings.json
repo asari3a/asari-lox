@@ -1,0 +1,9 @@
+{
+    "[c]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+    },
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.clang_format_fallbackStyle": "Google"
+}
