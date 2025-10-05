@@ -16,9 +16,11 @@ typedef enum {
   TK_PLUS,         // +
   TK_SEMICOLON,    // ;
   TK_STAR,         // *
+  TK_EQUAL,        // =
+  TK_EQUAL_EQUAL,  // ==
   TK_BANG,         // !
   TK_BANG_EQUAL,   // !=
-  TK_EOF
+  TK_EOF = -1
 } TokenType;
 
 struct Token {
@@ -95,6 +97,15 @@ static void run(char *source) {
       case '*':
         pos = addToken(pos, TK_STAR);
         ++p;
+        break;
+      case '=':
+        if (*(p + 1) == '=') {
+          pos = addToken(pos, TK_EQUAL_EQUAL);
+          p += 2;
+        } else {
+          pos = addToken(pos, TK_EQUAL);
+          ++p;
+        }
         break;
       case '!':
         if (*(p + 1) == '=') {

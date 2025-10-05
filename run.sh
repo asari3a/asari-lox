@@ -14,7 +14,11 @@ assert() {
     fi
 }
 
-assert "" "12"
-assert "() {}" "0 1 2 3 12"
-assert "() {} !=" "0 1 2 3 11 12"
-assert "() {} !" "0 1 2 3 10 12"
+assert "" "-1"
+assert "(){}" "0 1 2 3 -1"
+assert "!=" "13 -1"
+assert "!" "12 -1"
+assert "=" "10 -1"
+assert "==" "11 -1"
+
+echo "Ok"
