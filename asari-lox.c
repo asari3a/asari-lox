@@ -20,6 +20,8 @@ typedef enum {
   TK_EQUAL_EQUAL,  // ==
   TK_BANG,         // !
   TK_BANG_EQUAL,   // !=
+  TK_LESS,         // <
+  TK_LESS_EQUAL,   // <=
   TK_EOF = -1
 } TokenType;
 
@@ -113,6 +115,15 @@ static void run(char *source) {
           p += 2;
         } else {
           pos = addToken(pos, TK_BANG);
+          ++p;
+        }
+        break;
+      case '<':
+        if (*(p + 1) == '=') {
+          pos = addToken(pos, TK_LESS_EQUAL);
+          p += 2;
+        } else {
+          pos = addToken(pos, TK_LESS);
           ++p;
         }
         break;
