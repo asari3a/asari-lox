@@ -22,5 +22,7 @@ assert "=" "10 -1"
 assert "==" "11 -1"
 assert "<" "14 -1"
 assert "<=" "15 -1"
+assert ">" "16 -1"
+assert ">=" "17 -1"
 
 echo "Ok"

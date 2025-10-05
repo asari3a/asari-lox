@@ -6,22 +6,24 @@
 typedef struct Token Token;
 
 typedef enum {
-  TK_LEFT_PAREN,   // (
-  TK_RIGHT_PAREN,  // )
-  TK_LEFT_BRACE,   // {
-  TK_RIGHT_BRACE,  // }
-  TK_COMMA,        // ,
-  TK_DOT,          // .
-  TK_MINUS,        // -
-  TK_PLUS,         // +
-  TK_SEMICOLON,    // ;
-  TK_STAR,         // *
-  TK_EQUAL,        // =
-  TK_EQUAL_EQUAL,  // ==
-  TK_BANG,         // !
-  TK_BANG_EQUAL,   // !=
-  TK_LESS,         // <
-  TK_LESS_EQUAL,   // <=
+  TK_LEFT_PAREN,     // (
+  TK_RIGHT_PAREN,    // )
+  TK_LEFT_BRACE,     // {
+  TK_RIGHT_BRACE,    // }
+  TK_COMMA,          // ,
+  TK_DOT,            // .
+  TK_MINUS,          // -
+  TK_PLUS,           // +
+  TK_SEMICOLON,      // ;
+  TK_STAR,           // *
+  TK_EQUAL,          // =
+  TK_EQUAL_EQUAL,    // ==
+  TK_BANG,           // !
+  TK_BANG_EQUAL,     // !=
+  TK_LESS,           // <
+  TK_LESS_EQUAL,     // <=
+  TK_GREATER,        // >
+  TK_GREATER_EQUAL,  // >=
   TK_EOF = -1
 } TokenType;
 
@@ -124,6 +126,15 @@ static void run(char *source) {
           p += 2;
         } else {
           pos = addToken(pos, TK_LESS);
+          ++p;
+        }
+        break;
+      case '>':
+        if (*(p + 1) == '=') {
+          pos = addToken(pos, TK_GREATER_EQUAL);
+          p += 2;
+        } else {
+          pos = addToken(pos, TK_GREATER);
           ++p;
         }
         break;
