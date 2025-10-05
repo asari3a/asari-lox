@@ -51,12 +51,14 @@ static void error(int line, char *message) {
 }
 
 static void run(char *source) {
+  unsigned long line = 0;
   char *p = source;
   Token head, *pos = &head;
   head.next = NULL;
 
   while (*p) {
     if (isspace(*p)) {
+      if (*p == '\n') ++line;
       ++p;
       continue;
     }
@@ -150,7 +152,7 @@ static void run(char *source) {
         }
         break;
       default:
-        error(1, "定義されていないトークンです");
+        error(line, "定義されていないトークンです");
         break;
     }
   }
