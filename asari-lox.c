@@ -6,16 +6,16 @@
 typedef struct Token Token;
 
 typedef enum {
-  TK_LEFT_PAREN,
-  TK_RIGHT_PAREN,
-  TK_LEFT_BRACE,
-  TK_RIGHT_BRACE,
-  TK_COMMA,
-  TK_DOT,
-  TK_MINUS,
-  TK_PLUS,
-  TK_SEMICOLON,
-  TK_STAR,
+  TK_LEFT_PAREN,   // (
+  TK_RIGHT_PAREN,  // )
+  TK_LEFT_BRACE,   // {
+  TK_RIGHT_BRACE,  // }
+  TK_COMMA,        // ,
+  TK_DOT,          // .
+  TK_MINUS,        // -
+  TK_PLUS,         // +
+  TK_SEMICOLON,    // ;
+  TK_STAR,         // *
   TK_EOF
 } TokenType;
 
