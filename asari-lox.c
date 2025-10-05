@@ -16,6 +16,8 @@ typedef enum {
   TK_PLUS,         // +
   TK_SEMICOLON,    // ;
   TK_STAR,         // *
+  TK_BANG,         // !
+  TK_BANG_EQUAL,   // !=
   TK_EOF
 } TokenType;
 
@@ -94,6 +96,15 @@ static void run(char *source) {
         pos = addToken(pos, TK_STAR);
         ++p;
         break;
+      case '!':
+        if (*(p + 1) == '=') {
+          pos = addToken(pos, TK_BANG_EQUAL);
+          p += 2;
+        } else {
+          pos = addToken(pos, TK_BANG);
+          ++p;
+        }
+        break;
       default:
         error(1, "定義されていないトークンです");
         break;
@@ -102,7 +113,8 @@ static void run(char *source) {
   addToken(pos, TK_EOF);
 
   for (Token *p = head.next; p != NULL; p = p->next) {
-    printf("%d\n", p->type);
+    if (p != head.next) printf(" ");
+    printf("%d", p->type);
   }
   printf("\n");
 }
