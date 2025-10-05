@@ -24,6 +24,7 @@ typedef enum {
   TK_LESS_EQUAL,     // <=
   TK_GREATER,        // >
   TK_GREATER_EQUAL,  // >=
+  TK_SLASH,          // /
   TK_EOF = -1
 } TokenType;
 
@@ -135,6 +136,16 @@ static void run(char *source) {
           p += 2;
         } else {
           pos = addToken(pos, TK_GREATER);
+          ++p;
+        }
+        break;
+      case '/':
+        if (*(p + 1) == '/') {
+          while (*p != '\n' && *p != '\0') {
+            ++p;
+          }
+        } else {
+          pos = addToken(pos, TK_SLASH);
           ++p;
         }
         break;

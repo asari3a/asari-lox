@@ -24,5 +24,8 @@ assert "<" "14 -1"
 assert "<=" "15 -1"
 assert ">" "16 -1"
 assert ">=" "17 -1"
+assert "/" "18 -1"
+assert "// co" "-1"
+assert $'// co\n/' "18 -1"
 
 echo "Ok"
