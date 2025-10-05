@@ -25,15 +25,17 @@ typedef enum {
   TK_GREATER,        // >
   TK_GREATER_EQUAL,  // >=
   TK_SLASH,          // /
+  TK_STRING,         // 文字列リテラル
   TK_EOF = -1
 } TokenType;
 
 struct Token {
   TokenType type;
   Token *next;
+  char *lexeme;
 };
 
-Token *addToken(Token *pos, TokenType type) {
+Token *addToken(Token *pos, TokenType type, char *lexeme) {
   Token *token = (Token *)calloc(1, sizeof(Token));
   token->type = type;
   token->next = NULL;
@@ -65,79 +67,79 @@ static void run(char *source) {
 
     switch (*p) {
       case '(':
-        pos = addToken(pos, TK_LEFT_PAREN);
+        pos = addToken(pos, TK_LEFT_PAREN, p);
         ++p;
         break;
 
       case ')':
-        pos = addToken(pos, TK_RIGHT_PAREN);
+        pos = addToken(pos, TK_RIGHT_PAREN, p);
         ++p;
         break;
       case '{':
-        pos = addToken(pos, TK_LEFT_BRACE);
+        pos = addToken(pos, TK_LEFT_BRACE, p);
         ++p;
         break;
       case '}':
-        pos = addToken(pos, TK_RIGHT_BRACE);
+        pos = addToken(pos, TK_RIGHT_BRACE, p);
         ++p;
         break;
       case ',':
-        pos = addToken(pos, TK_COMMA);
+        pos = addToken(pos, TK_COMMA, p);
         ++p;
         break;
       case '.':
-        pos = addToken(pos, TK_DOT);
+        pos = addToken(pos, TK_DOT, p);
         ++p;
         break;
       case '-':
-        pos = addToken(pos, TK_MINUS);
+        pos = addToken(pos, TK_MINUS, p);
         ++p;
         break;
       case '+':
-        pos = addToken(pos, TK_PLUS);
+        pos = addToken(pos, TK_PLUS, p);
         ++p;
         break;
       case ';':
-        pos = addToken(pos, TK_SEMICOLON);
+        pos = addToken(pos, TK_SEMICOLON, p);
         ++p;
         break;
       case '*':
-        pos = addToken(pos, TK_STAR);
+        pos = addToken(pos, TK_STAR, p);
         ++p;
         break;
       case '=':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_EQUAL_EQUAL);
+          pos = addToken(pos, TK_EQUAL_EQUAL, p);
           p += 2;
         } else {
-          pos = addToken(pos, TK_EQUAL);
+          pos = addToken(pos, TK_EQUAL, p);
           ++p;
         }
         break;
       case '!':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_BANG_EQUAL);
+          pos = addToken(pos, TK_BANG_EQUAL, p);
           p += 2;
         } else {
-          pos = addToken(pos, TK_BANG);
+          pos = addToken(pos, TK_BANG, p);
           ++p;
         }
         break;
       case '<':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_LESS_EQUAL);
+          pos = addToken(pos, TK_LESS_EQUAL, p);
           p += 2;
         } else {
-          pos = addToken(pos, TK_LESS);
+          pos = addToken(pos, TK_LESS, p);
           ++p;
         }
         break;
       case '>':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_GREATER_EQUAL);
+          pos = addToken(pos, TK_GREATER_EQUAL, p);
           p += 2;
         } else {
-          pos = addToken(pos, TK_GREATER);
+          pos = addToken(pos, TK_GREATER, p);
           ++p;
         }
         break;
@@ -147,16 +149,28 @@ static void run(char *source) {
             ++p;
           }
         } else {
-          pos = addToken(pos, TK_SLASH);
+          pos = addToken(pos, TK_SLASH, p);
           ++p;
         }
+        break;
+      case '\"':
+        ++p;
+        while (*p != '\"' && *p != '\0') {
+          if (*p == '\n') line++;
+          ++p;
+        }
+        if (*p == '\0') {
+          error(line, "文字列が終結していません。");
+        }
+        pos = addToken(pos, TK_STRING, p);
+        ++p;
         break;
       default:
         error(line, "定義されていないトークンです");
         break;
     }
   }
-  addToken(pos, TK_EOF);
+  addToken(pos, TK_EOF, NULL);
 
   for (Token *p = head.next; p != NULL; p = p->next) {
     if (p != head.next) printf(" ");

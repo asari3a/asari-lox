@@ -27,5 +27,6 @@ assert ">=" "17 -1"
 assert "/" "18 -1"
 assert "// co" "-1"
 assert $'// co\n/' "18 -1"
+assert $'\"this is a string\"' "19 -1"
 
 echo "Ok"
