@@ -1,10 +1,12 @@
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 
 typedef struct Token Token;
+typedef struct Node Node;
 
 typedef enum {
   TK_LEFT_PAREN,     // (
@@ -48,18 +50,35 @@ typedef enum {
   TK_EOF = -1
 } TokenType;
 
+typedef enum {
+  ND_ADD,  // +
+  ND_MUL,  // *
+  ND_NUM   // 数値
+} NodeKind;
+
 struct Token {
   TokenType type;
   Token* next;
   char* lexeme;
+  void* literal;
 };
 
-Token head;
+struct Node {
+  NodeKind kind;
+  Node* lhs;
+  Node* rhs;
+  double val;
+};
 
-Token* addToken(Token* pos, TokenType type, char* lexeme) {
+Token head, *tok;
+
+Token* addToken(Token* pos, TokenType type, char* start, size_t len) {
   Token* token = (Token*)calloc(1, sizeof(Token));
   token->type = type;
   token->next = NULL;
+  token->lexeme = calloc(len + 1, sizeof(char));
+  memcpy(token->lexeme, start, len);
+  token->lexeme[len] = '\0';
   pos->next = token;
   return token;
 }
@@ -85,82 +104,83 @@ void scanTokens(char* source) {
       ++p;
       continue;
     }
+    char* start;
 
     switch (*p) {
       case '(':
-        pos = addToken(pos, TK_LEFT_PAREN, p);
+        pos = addToken(pos, TK_LEFT_PAREN, p, 1);
         ++p;
         break;
 
       case ')':
-        pos = addToken(pos, TK_RIGHT_PAREN, p);
+        pos = addToken(pos, TK_RIGHT_PAREN, p, 1);
         ++p;
         break;
       case '{':
-        pos = addToken(pos, TK_LEFT_BRACE, p);
+        pos = addToken(pos, TK_LEFT_BRACE, p, 1);
         ++p;
         break;
       case '}':
-        pos = addToken(pos, TK_RIGHT_BRACE, p);
+        pos = addToken(pos, TK_RIGHT_BRACE, p, 1);
         ++p;
         break;
       case ',':
-        pos = addToken(pos, TK_COMMA, p);
+        pos = addToken(pos, TK_COMMA, p, 1);
         ++p;
         break;
       case '.':
-        pos = addToken(pos, TK_DOT, p);
+        pos = addToken(pos, TK_DOT, p, 1);
         ++p;
         break;
       case '-':
-        pos = addToken(pos, TK_MINUS, p);
+        pos = addToken(pos, TK_MINUS, p, 1);
         ++p;
         break;
       case '+':
-        pos = addToken(pos, TK_PLUS, p);
+        pos = addToken(pos, TK_PLUS, p, 1);
         ++p;
         break;
       case ';':
-        pos = addToken(pos, TK_SEMICOLON, p);
+        pos = addToken(pos, TK_SEMICOLON, p, 1);
         ++p;
         break;
       case '*':
-        pos = addToken(pos, TK_STAR, p);
+        pos = addToken(pos, TK_STAR, p, 1);
         ++p;
         break;
       case '=':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_EQUAL_EQUAL, p);
+          pos = addToken(pos, TK_EQUAL_EQUAL, p, 2);
           p += 2;
         } else {
-          pos = addToken(pos, TK_EQUAL, p);
+          pos = addToken(pos, TK_EQUAL, p, 1);
           ++p;
         }
         break;
       case '!':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_BANG_EQUAL, p);
+          pos = addToken(pos, TK_BANG_EQUAL, p, 2);
           p += 2;
         } else {
-          pos = addToken(pos, TK_BANG, p);
+          pos = addToken(pos, TK_BANG, p, 1);
           ++p;
         }
         break;
       case '<':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_LESS_EQUAL, p);
+          pos = addToken(pos, TK_LESS_EQUAL, p, 2);
           p += 2;
         } else {
-          pos = addToken(pos, TK_LESS, p);
+          pos = addToken(pos, TK_LESS, p, 1);
           ++p;
         }
         break;
       case '>':
         if (*(p + 1) == '=') {
-          pos = addToken(pos, TK_GREATER_EQUAL, p);
+          pos = addToken(pos, TK_GREATER_EQUAL, p, 2);
           p += 2;
         } else {
-          pos = addToken(pos, TK_GREATER, p);
+          pos = addToken(pos, TK_GREATER, p, 1);
           ++p;
         }
         break;
@@ -170,12 +190,12 @@ void scanTokens(char* source) {
             ++p;
           }
         } else {
-          pos = addToken(pos, TK_SLASH, p);
+          pos = addToken(pos, TK_SLASH, p, 1);
           ++p;
         }
         break;
       case '\"':
-        ++p;
+        start = ++p;
         while (*p != '\"' && *p != '\0') {
           if (*p == '\n') line++;
           ++p;
@@ -183,11 +203,11 @@ void scanTokens(char* source) {
         if (*p == '\0') {
           error(line, "文字列が終結していません。");
         }
-        pos = addToken(pos, TK_STRING, p);
+        pos = addToken(pos, TK_STRING, start, (size_t)(p - start));
         ++p;
         break;
       default:
-        char* start = p;
+        start = p;
         // 数値トークン
         if (isdigit(*p)) {
           while (isdigit(*p)) {
@@ -201,111 +221,111 @@ void scanTokens(char* source) {
             }
           }
 
-          pos = addToken(pos, TK_NUMBER, p);
+          pos = addToken(pos, TK_NUMBER, start, (size_t)(p - start));
           break;
         }
         // 識別子
         else if (isalpha(*p)) {
           while (isalpha(*p)) ++p;
 
-          if ((strlen("AND") == p - start) &&
-              strncmp(start, "AND", p - start) == 0) {
-            pos = addToken(pos, TK_AND, p);
+          if ((strlen("and") == p - start) &&
+              strncmp(start, "and", p - start) == 0) {
+            pos = addToken(pos, TK_AND, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("CLASS") == p - start) &&
-                   strncmp(start, "CLASS", p - start) == 0) {
-            pos = addToken(pos, TK_CLASS, p);
+          else if ((strlen("class") == p - start) &&
+                   strncmp(start, "class", p - start) == 0) {
+            pos = addToken(pos, TK_CLASS, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("ELSE") == p - start) &&
-                   strncmp(start, "ELSE", p - start) == 0) {
-            pos = addToken(pos, TK_ELSE, p);
+          else if ((strlen("else") == p - start) &&
+                   strncmp(start, "else", p - start) == 0) {
+            pos = addToken(pos, TK_ELSE, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("FALSE") == p - start) &&
-                   strncmp(start, "FALSE", p - start) == 0) {
-            pos = addToken(pos, TK_FALSE, p);
+          else if ((strlen("false") == p - start) &&
+                   strncmp(start, "false", p - start) == 0) {
+            pos = addToken(pos, TK_FALSE, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("FOR") == p - start) &&
-                   strncmp(start, "FOR", p - start) == 0) {
-            pos = addToken(pos, TK_FOR, p);
+          else if ((strlen("for") == p - start) &&
+                   strncmp(start, "for", p - start) == 0) {
+            pos = addToken(pos, TK_FOR, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("FUN") == p - start) &&
-                   strncmp(start, "FUN", p - start) == 0) {
-            pos = addToken(pos, TK_FUN, p);
+          else if ((strlen("fun") == p - start) &&
+                   strncmp(start, "fun", p - start) == 0) {
+            pos = addToken(pos, TK_FUN, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("IF") == p - start) &&
-                   strncmp(start, "IF", p - start) == 0) {
-            pos = addToken(pos, TK_IF, p);
+          else if ((strlen("if") == p - start) &&
+                   strncmp(start, "if", p - start) == 0) {
+            pos = addToken(pos, TK_IF, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("NIL") == p - start) &&
-                   strncmp(start, "NIL", p - start) == 0) {
-            pos = addToken(pos, TK_NIL, p);
+          else if ((strlen("nil") == p - start) &&
+                   strncmp(start, "nil", p - start) == 0) {
+            pos = addToken(pos, TK_NIL, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("OR") == p - start) &&
-                   strncmp(start, "OR", p - start) == 0) {
-            pos = addToken(pos, TK_OR, p);
+          else if ((strlen("or") == p - start) &&
+                   strncmp(start, "or", p - start) == 0) {
+            pos = addToken(pos, TK_OR, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("PRINT") == p - start) &&
-                   strncmp(start, "PRINT", p - start) == 0) {
-            pos = addToken(pos, TK_PRINT, p);
+          else if ((strlen("print") == p - start) &&
+                   strncmp(start, "print", p - start) == 0) {
+            pos = addToken(pos, TK_PRINT, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("RETURN") == p - start) &&
-                   strncmp(start, "RETURN", p - start) == 0) {
-            pos = addToken(pos, TK_RETURN, p);
+          else if ((strlen("return") == p - start) &&
+                   strncmp(start, "return", p - start) == 0) {
+            pos = addToken(pos, TK_RETURN, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("SUPER") == p - start) &&
-                   strncmp(start, "SUPER", p - start) == 0) {
-            pos = addToken(pos, TK_SUPER, p);
+          else if ((strlen("super") == p - start) &&
+                   strncmp(start, "super", p - start) == 0) {
+            pos = addToken(pos, TK_SUPER, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("THIS") == p - start) &&
-                   strncmp(start, "THIS", p - start) == 0) {
-            pos = addToken(pos, TK_THIS, p);
+          else if ((strlen("this") == p - start) &&
+                   strncmp(start, "this", p - start) == 0) {
+            pos = addToken(pos, TK_THIS, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("TRUE") == p - start) &&
-                   strncmp(start, "TRUE", p - start) == 0) {
-            pos = addToken(pos, TK_TRUE, p);
+          else if ((strlen("true") == p - start) &&
+                   strncmp(start, "true", p - start) == 0) {
+            pos = addToken(pos, TK_TRUE, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("VAR") == p - start) &&
-                   strncmp(start, "VAR", p - start) == 0) {
-            pos = addToken(pos, TK_VAR, p);
+          else if ((strlen("var") == p - start) &&
+                   strncmp(start, "var", p - start) == 0) {
+            pos = addToken(pos, TK_VAR, start, (size_t)(p - start));
             break;
           }
 
-          else if ((strlen("WHILE") == p - start) &&
-                   strncmp(start, "WHILE", p - start) == 0) {
-            pos = addToken(pos, TK_WHILE, p);
+          else if ((strlen("while") == p - start) &&
+                   strncmp(start, "while", p - start) == 0) {
+            pos = addToken(pos, TK_WHILE, start, (size_t)(p - start));
             break;
           }
 
           else {
-            pos = addToken(pos, TK_IDENTIFIER, p);
+            pos = addToken(pos, TK_IDENTIFIER, start, (size_t)(p - start));
             break;
           }
         }
@@ -314,14 +334,30 @@ void scanTokens(char* source) {
         break;
     }
   }
-  addToken(pos, TK_EOF, NULL);
+  addToken(pos, TK_EOF, NULL, 0);
+}
+
+Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
+  Node* node = (Node*)calloc(1, sizeof(Node));
+  node->kind = kind;
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+Node* new_node_num(double val) {
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_NUM;
+  node->val = val;
+  return node;
 }
 
 static void run(char* source) {
+  // --- トークナイズ ---
   scanTokens(source);
+
   for (Token* p = head.next; p != NULL; p = p->next) {
-    if (p != head.next) printf(" ");
-    printf("%d", p->type);
+    printf("%s", p->lexeme);
   }
   printf("\n");
 }

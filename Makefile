@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c11 -g -Wall -Wextra
+CFLAGS=-std=c11 -g -Wall -Wextra -DDEBUG
 
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
