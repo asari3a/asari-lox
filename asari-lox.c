@@ -58,6 +58,8 @@ typedef enum {
   ND_NEG,    // 単項 -
   ND_LT,     // <
   ND_LE,     // <=
+  ND_EQ,     // ==
+  ND_NE,     // !=
   ND_NUM     // 数値
 } NodeKind;
 
@@ -416,13 +418,27 @@ static void print_ast(Node* node) {
       print_ast(node->rhs);
       printf(")");
       break;
+    case ND_EQ:
+      printf("(== ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
+    case ND_NE:
+      printf("(!= ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
     default:
       printf("(unknown)");
   }
 }
 
 // expression -> equality
-// equality -> comparison
+// equality -> comparison ( ( "==" | "!=" ) comparison )*
 // comparison -> term ( ">" | ">=" | "<" | "<=" ) term)*
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
@@ -452,7 +468,19 @@ bool expect(TokenType type) { return token->type == type; }
 
 Node* expression() { return equality(); }
 
-Node* equality() { return comparison(); }
+Node* equality() {
+  Node* node = comparison();
+
+  for (;;) {
+    if (match(TK_EQUAL_EQUAL)) {
+      node = new_node(ND_EQ, node, comparison());
+    } else if (match(TK_BANG_EQUAL)) {
+      node = new_node(ND_NE, node, comparison());
+    } else {
+      return node;
+    }
+  }
+}
 
 Node* comparison() {
   Node* node = term();
