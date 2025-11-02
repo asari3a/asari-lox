@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 
 typedef struct Token Token;
@@ -27,6 +28,23 @@ typedef enum {
   TK_SLASH,          // /
   TK_STRING,         // 文字列リテラル
   TK_NUMBER,         // 数値リテラル
+  TK_IDENTIFIER,     // 識別子
+  TK_AND,            // and
+  TK_CLASS,          // class
+  TK_ELSE,           // else
+  TK_FALSE,          // false
+  TK_FUN,            // fun
+  TK_FOR,            // for
+  TK_IF,             // if
+  TK_NIL,            // nil
+  TK_OR,             // or
+  TK_PRINT,          // print
+  TK_RETURN,         // return
+  TK_SUPER,          // super
+  TK_THIS,           // this
+  TK_TRUE,           // true
+  TK_VAR,            // var
+  TK_WHILE,          // while
   TK_EOF = -1
 } TokenType;
 
@@ -167,6 +185,7 @@ static void run(char* source) {
         ++p;
         break;
       default:
+        char* start = p;
         // 数値トークン
         if (isdigit(*p)) {
           while (isdigit(*p)) {
@@ -183,6 +202,112 @@ static void run(char* source) {
           pos = addToken(pos, TK_NUMBER, p);
           break;
         }
+        // 識別子
+        else if (isalpha(*p)) {
+          while (isalpha(*p)) ++p;
+
+          if ((strlen("AND") == p - start) &&
+              strncmp(start, "AND", p - start) == 0) {
+            pos = addToken(pos, TK_AND, p);
+            break;
+          }
+
+          else if ((strlen("CLASS") == p - start) &&
+                   strncmp(start, "CLASS", p - start) == 0) {
+            pos = addToken(pos, TK_CLASS, p);
+            break;
+          }
+
+          else if ((strlen("ELSE") == p - start) &&
+                   strncmp(start, "ELSE", p - start) == 0) {
+            pos = addToken(pos, TK_ELSE, p);
+            break;
+          }
+
+          else if ((strlen("FALSE") == p - start) &&
+                   strncmp(start, "FALSE", p - start) == 0) {
+            pos = addToken(pos, TK_FALSE, p);
+            break;
+          }
+
+          else if ((strlen("FOR") == p - start) &&
+                   strncmp(start, "FOR", p - start) == 0) {
+            pos = addToken(pos, TK_FOR, p);
+            break;
+          }
+
+          else if ((strlen("FUN") == p - start) &&
+                   strncmp(start, "FUN", p - start) == 0) {
+            pos = addToken(pos, TK_FUN, p);
+            break;
+          }
+
+          else if ((strlen("IF") == p - start) &&
+                   strncmp(start, "IF", p - start) == 0) {
+            pos = addToken(pos, TK_IF, p);
+            break;
+          }
+
+          else if ((strlen("NIL") == p - start) &&
+                   strncmp(start, "NIL", p - start) == 0) {
+            pos = addToken(pos, TK_NIL, p);
+            break;
+          }
+
+          else if ((strlen("OR") == p - start) &&
+                   strncmp(start, "OR", p - start) == 0) {
+            pos = addToken(pos, TK_OR, p);
+            break;
+          }
+
+          else if ((strlen("PRINT") == p - start) &&
+                   strncmp(start, "PRINT", p - start) == 0) {
+            pos = addToken(pos, TK_PRINT, p);
+            break;
+          }
+
+          else if ((strlen("RETURN") == p - start) &&
+                   strncmp(start, "RETURN", p - start) == 0) {
+            pos = addToken(pos, TK_RETURN, p);
+            break;
+          }
+
+          else if ((strlen("SUPER") == p - start) &&
+                   strncmp(start, "SUPER", p - start) == 0) {
+            pos = addToken(pos, TK_SUPER, p);
+            break;
+          }
+
+          else if ((strlen("THIS") == p - start) &&
+                   strncmp(start, "THIS", p - start) == 0) {
+            pos = addToken(pos, TK_THIS, p);
+            break;
+          }
+
+          else if ((strlen("TRUE") == p - start) &&
+                   strncmp(start, "TRUE", p - start) == 0) {
+            pos = addToken(pos, TK_TRUE, p);
+            break;
+          }
+
+          else if ((strlen("VAR") == p - start) &&
+                   strncmp(start, "VAR", p - start) == 0) {
+            pos = addToken(pos, TK_VAR, p);
+            break;
+          }
+
+          else if ((strlen("WHILE") == p - start) &&
+                   strncmp(start, "WHILE", p - start) == 0) {
+            pos = addToken(pos, TK_WHILE, p);
+            break;
+          }
+
+          else {
+            pos = addToken(pos, TK_IDENTIFIER, p);
+            break;
+          }
+        }
+
         error(line, "定義されていないトークンです");
         break;
     }

@@ -29,5 +29,6 @@ assert "// co" "-1"
 assert $'// co\n/' "18 -1"
 assert $'\"this is a string\"' "19 -1"
 assert "123.456 // number" "20 -1"
+assert "AND FOR" "22 27 -1"
 
 echo "Ok"
