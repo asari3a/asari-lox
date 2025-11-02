@@ -54,6 +54,8 @@ struct Token {
   char* lexeme;
 };
 
+Token head;
+
 Token* addToken(Token* pos, TokenType type, char* lexeme) {
   Token* token = (Token*)calloc(1, sizeof(Token));
   token->type = type;
@@ -71,12 +73,12 @@ static void error(int line, char* message) {
   exit(EX_DATAERR);
 }
 
-static void run(char* source) {
-  unsigned long line = 0;
-  char* p = source;
-  Token head, *pos = &head;
+void scanTokens(char* source) {
+  Token* pos = &head;
   head.next = NULL;
 
+  char* p = source;
+  unsigned long line = 0;
   while (*p) {
     if (isspace(*p)) {
       if (*p == '\n') ++line;
@@ -313,7 +315,10 @@ static void run(char* source) {
     }
   }
   addToken(pos, TK_EOF, NULL);
+}
 
+static void run(char* source) {
+  scanTokens(source);
   for (Token* p = head.next; p != NULL; p = p->next) {
     if (p != head.next) printf(" ");
     printf("%d", p->type);
@@ -333,8 +338,6 @@ static void runPrompt() {
     run(buf);
   }
 }
-
-void scanTokens(char* source) {}
 
 int main(int argc, char** argv) {
   if (argc > 2) {
