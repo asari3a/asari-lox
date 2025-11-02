@@ -54,6 +54,7 @@ typedef enum {
   ND_ADD,    // +
   ND_MINUS,  // -
   ND_MUL,    // *
+  ND_DIV,    // /
   ND_NUM     // 数値
 } NodeKind;
 
@@ -380,7 +381,14 @@ static void print_ast(Node* node) {
       printf(")");
       break;
     case ND_MUL:
-      printf("(*");
+      printf("(* ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
+    case ND_DIV:
+      printf("(/ ");
       print_ast(node->lhs);
       printf(" ");
       print_ast(node->rhs);
@@ -393,7 +401,7 @@ static void print_ast(Node* node) {
 
 // expression -> term
 // term -> factor (("+" | "-") factor)*
-// factor -> unary ("*" unary)*
+// factor -> unary (("*" | "/") unary)*
 // unary -> primary
 // primary -> NUMBER;
 
@@ -438,6 +446,8 @@ Node* factor() {
   for (;;) {
     if (match(TK_STAR)) {
       node = new_node(ND_MUL, node, unary());
+    } else if (match(TK_SLASH)) {
+      node = new_node(ND_DIV, node, unary());
     } else {
       return node;
     }
