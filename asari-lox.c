@@ -26,35 +26,36 @@ typedef enum {
   TK_GREATER_EQUAL,  // >=
   TK_SLASH,          // /
   TK_STRING,         // 文字列リテラル
+  TK_NUMBER,         // 数値リテラル
   TK_EOF = -1
 } TokenType;
 
 struct Token {
   TokenType type;
-  Token *next;
-  char *lexeme;
+  Token* next;
+  char* lexeme;
 };
 
-Token *addToken(Token *pos, TokenType type, char *lexeme) {
-  Token *token = (Token *)calloc(1, sizeof(Token));
+Token* addToken(Token* pos, TokenType type, char* lexeme) {
+  Token* token = (Token*)calloc(1, sizeof(Token));
   token->type = type;
   token->next = NULL;
   pos->next = token;
   return token;
 }
 
-static void report(int line, char *where, char *message) {
+static void report(int line, char* where, char* message) {
   fprintf(stderr, "[line %d] Error %s: %s\n", line, where, message);
 }
 
-static void error(int line, char *message) {
+static void error(int line, char* message) {
   report(line, "", message);
   exit(EX_DATAERR);
 }
 
-static void run(char *source) {
+static void run(char* source) {
   unsigned long line = 0;
-  char *p = source;
+  char* p = source;
   Token head, *pos = &head;
   head.next = NULL;
 
@@ -166,20 +167,36 @@ static void run(char *source) {
         ++p;
         break;
       default:
+        // 数値トークン
+        if (isdigit(*p)) {
+          while (isdigit(*p)) {
+            ++p;
+          }
+
+          if (*p == '.' && isdigit(*(p + 1))) {
+            ++p;
+            while (isdigit(*p)) {
+              ++p;
+            }
+          }
+
+          pos = addToken(pos, TK_NUMBER, p);
+          break;
+        }
         error(line, "定義されていないトークンです");
         break;
     }
   }
   addToken(pos, TK_EOF, NULL);
 
-  for (Token *p = head.next; p != NULL; p = p->next) {
+  for (Token* p = head.next; p != NULL; p = p->next) {
     if (p != head.next) printf(" ");
     printf("%d", p->type);
   }
   printf("\n");
 }
 
-static void runFile(char *path) { run(path); }
+static void runFile(char* path) { run(path); }
 
 static void runPrompt() {
   // ToDO: 空白文字があるとバグる
@@ -192,9 +209,9 @@ static void runPrompt() {
   }
 }
 
-void scanTokens(char *source) {}
+void scanTokens(char* source) {}
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc > 2) {
     printf("Usage: asari-lox [script]\n");
     exit(EX_USAGE);
