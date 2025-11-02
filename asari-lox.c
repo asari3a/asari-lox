@@ -63,6 +63,7 @@ typedef enum {
   ND_NUM,    // 数値
   ND_STR,    // 文字列
   ND_BOOL,   // True, False
+  ND_NIL,    // nil
 } NodeKind;
 
 struct Token {
@@ -378,6 +379,12 @@ Node* new_node_bool(bool val) {
   return node;
 }
 
+Node* new_node_nil() {
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_NIL;
+  return node;
+}
+
 // pre-orderで深さ優先探索（？）すれば、S式らしくなるだろう
 static void print_ast(Node* node) {
   if (!node) {
@@ -397,6 +404,9 @@ static void print_ast(Node* node) {
         printf("true");
       else
         printf("false");
+      break;
+    case ND_NIL:
+      printf("nil");
       break;
     case ND_ADD:
       printf("(+ ");
@@ -470,7 +480,7 @@ static void print_ast(Node* node) {
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
 // unary -> "-" unary | primary
-// primary -> NUMBER | STRING | "true" | "false" | "(" expression ")";
+// primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")";
 
 Token* token;
 
@@ -582,6 +592,10 @@ Node* primary() {
   if (expect(TK_FALSE)) {
     token = token->next;
     return new_node_bool(false);
+  }
+
+  if (expect(TK_NIL)) {
+    return new_node_nil();
   }
 
   if (match(TK_LEFT_PAREN)) {
