@@ -7,6 +7,7 @@
 
 typedef struct Token Token;
 typedef struct Node Node;
+typedef struct Value Value;
 
 typedef enum {
   TK_LEFT_PAREN,     // (
@@ -66,6 +67,13 @@ typedef enum {
   ND_NIL,    // nil
 } NodeKind;
 
+typedef enum {
+  VAL_NIL,     // nil
+  VAL_BOOL,    // 真偽値
+  VAL_NUM,     // 数値
+  VAL_STRING,  // 文字列
+} ValueType;
+
 struct Token {
   TokenType type;
   Token* next;
@@ -80,6 +88,15 @@ struct Node {
   double val;
   char* sval;
   bool bval;
+};
+
+struct Value {
+  ValueType type;
+  union {
+    double num;
+    bool boolean;
+    char* str;
+  };
 };
 
 Token head;
@@ -609,6 +626,27 @@ Node* primary() {
   }
 }
 
+static Value value_num(double val) {
+  return (Value){.type = VAL_NUM, .num = val};
+}
+
+static Value eval(Node* node) {
+  switch (node->kind) {
+    case ND_NUM:
+      return value_num(node->val);
+      break;
+
+    case ND_ADD:
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
+        return value_num(lval.num + rval.num);
+      }
+    default:
+      break;
+  }
+}
+
 static void run(char* source) {
   // --- トークナイズ ---
   scanTokens(source);
@@ -616,13 +654,13 @@ static void run(char* source) {
   // -- パース ---
   token = head.next;
   Node* node = expression();
+
+  // --- 構文木の表示 ---
   print_ast(node);
 
-  for (Token* p = head.next; p != NULL && p->type != TK_EOF; p = p->next) {
-    if (p != head.next) printf(" ");
-    printf("%s", p->lexeme);
-  }
-  printf("\n");
+  // --- 評価（ツリーウォーク）---
+  Value result = eval(node);
+  if (result.type == VAL_NUM) printf("Result: %lf\n", result.num);
 }
 
 static void runFile(char* path) {
