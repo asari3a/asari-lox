@@ -62,6 +62,7 @@ typedef enum {
   ND_NE,     // !=
   ND_NUM,    // 数値
   ND_STR,    // 文字列
+  ND_BOOL,   // True, False
 } NodeKind;
 
 struct Token {
@@ -77,6 +78,7 @@ struct Node {
   Node* rhs;
   double val;
   char* sval;
+  bool bval;
 };
 
 Token head;
@@ -369,6 +371,13 @@ Node* new_node_str(char* val) {
   return node;
 }
 
+Node* new_node_bool(bool val) {
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_BOOL;
+  node->bval = val;
+  return node;
+}
+
 // pre-orderで深さ優先探索（？）すれば、S式らしくなるだろう
 static void print_ast(Node* node) {
   if (!node) {
@@ -382,6 +391,12 @@ static void print_ast(Node* node) {
       break;
     case ND_STR:
       printf("%s", node->sval);
+      break;
+    case ND_BOOL:
+      if (node->bval)
+        printf("true");
+      else
+        printf("false");
       break;
     case ND_ADD:
       printf("(+ ");
@@ -455,7 +470,7 @@ static void print_ast(Node* node) {
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
 // unary -> "-" unary | primary
-// primary -> NUMBER | STRING | "(" expression ")";
+// primary -> NUMBER | STRING | "true" | "false" | "(" expression ")";
 
 Token* token;
 
@@ -555,9 +570,18 @@ Node* primary() {
 
   if (expect(TK_STRING)) {
     char* val = token->lexeme;
-    printf("%s\n", val);
     token = token->next;
     return new_node_str(val);
+  }
+
+  if (expect(TK_TRUE)) {
+    token = token->next;
+    return new_node_bool(true);
+  }
+
+  if (expect(TK_FALSE)) {
+    token = token->next;
+    return new_node_bool(false);
   }
 
   if (match(TK_LEFT_PAREN)) {
