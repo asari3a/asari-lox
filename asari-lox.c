@@ -651,12 +651,37 @@ static Value eval(Node* node) {
     case ND_BOOL:
       return value_bool(node->bval);
 
-    case ND_ADD:
+    case ND_ADD: {
       Value lval = eval(node->lhs);
       Value rval = eval(node->rhs);
       if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
         return value_num(lval.num + rval.num);
       }
+    }
+
+    case ND_MINUS: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
+        return value_num(lval.num - rval.num);
+      }
+    }
+
+    case ND_MUL: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
+        return value_num(lval.num * rval.num);
+      }
+    }
+
+    case ND_DIV: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
+        return value_num(lval.num / rval.num);
+      }
+    }
     default:
       break;
   }
