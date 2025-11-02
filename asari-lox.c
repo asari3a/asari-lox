@@ -409,7 +409,7 @@ static void print_ast(Node* node) {
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
 // unary -> "-" unary | primary
-// primary -> NUMBER;
+// primary -> NUMBER | "(" expression ")";
 
 Token* token;
 
@@ -472,6 +472,16 @@ Node* primary() {
     double val = strtod(token->lexeme, NULL);
     token = token->next;
     return new_node_num(val);
+  }
+
+  if (match(TK_LEFT_PAREN)) {
+    Node* node = expression();
+    if (match(TK_RIGHT_PAREN)) {
+      return node;
+    }
+
+    fprintf(stderr, "式が括弧で閉じていません。\n");
+    exit(EX_DATAERR);
   }
 }
 
