@@ -60,7 +60,8 @@ typedef enum {
   ND_LE,     // <=
   ND_EQ,     // ==
   ND_NE,     // !=
-  ND_NUM     // 数値
+  ND_NUM,    // 数値
+  ND_STR,    // 文字列
 } NodeKind;
 
 struct Token {
@@ -75,6 +76,7 @@ struct Node {
   Node* lhs;
   Node* rhs;
   double val;
+  char* sval;
 };
 
 Token head;
@@ -360,6 +362,13 @@ Node* new_node_num(double val) {
   return node;
 }
 
+Node* new_node_str(char* val) {
+  Node* node = calloc(1, sizeof(Node));
+  node->kind = ND_STR;
+  node->sval = val;
+  return node;
+}
+
 // pre-orderで深さ優先探索（？）すれば、S式らしくなるだろう
 static void print_ast(Node* node) {
   if (!node) {
@@ -370,6 +379,9 @@ static void print_ast(Node* node) {
   switch (node->kind) {
     case ND_NUM:
       printf("%lf", node->val);
+      break;
+    case ND_STR:
+      printf("%s", node->sval);
       break;
     case ND_ADD:
       printf("(+ ");
@@ -443,7 +455,7 @@ static void print_ast(Node* node) {
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
 // unary -> "-" unary | primary
-// primary -> NUMBER | "(" expression ")";
+// primary -> NUMBER | STRING | "(" expression ")";
 
 Token* token;
 
@@ -539,6 +551,13 @@ Node* primary() {
     double val = strtod(token->lexeme, NULL);
     token = token->next;
     return new_node_num(val);
+  }
+
+  if (expect(TK_STRING)) {
+    char* val = token->lexeme;
+    printf("%s\n", val);
+    token = token->next;
+    return new_node_str(val);
   }
 
   if (match(TK_LEFT_PAREN)) {
