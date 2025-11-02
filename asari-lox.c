@@ -640,6 +640,22 @@ static Value value_bool(bool val) {
 
 static Value value_nil() { return (Value){.type = VAL_NIL}; }
 
+static bool is_equal(Value a, Value b) {
+  if (a.type == VAL_NIL && b.type == VAL_NIL) return true;
+  if (a.type == VAL_NIL || b.type == VAL_NIL) return false;
+  if (a.type != b.type) return false;
+  switch (a.type) {
+    case VAL_NUM:
+      return a.num == b.num;
+    case VAL_BOOL:
+      return a.boolean == b.boolean;
+    case VAL_STRING:
+      return strlen(a.str) == strlen(b.str) && strcmp(a.str, b.str) == 0;
+    default:
+      return false;
+  }
+}
+
 static Value eval(Node* node) {
   switch (node->kind) {
     case ND_NUM:
@@ -681,6 +697,16 @@ static Value eval(Node* node) {
       if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
         return value_num(lval.num / rval.num);
       }
+    }
+    case ND_EQ: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      return value_bool(is_equal(lval, rval));
+    }
+    case ND_NE: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      return value_bool(!is_equal(lval, rval));
     }
     default:
       break;
