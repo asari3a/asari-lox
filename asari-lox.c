@@ -51,9 +51,10 @@ typedef enum {
 } TokenType;
 
 typedef enum {
-  ND_ADD,  // +
-  ND_MUL,  // *
-  ND_NUM   // 数値
+  ND_ADD,    // +
+  ND_MINUS,  // -
+  ND_MUL,    // *
+  ND_NUM     // 数値
 } NodeKind;
 
 struct Token {
@@ -371,13 +372,20 @@ static void print_ast(Node* node) {
       print_ast(node->rhs);
       printf(")");
       break;
+    case ND_MINUS:
+      printf("(- ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
     default:
       printf("(unknown)");
   }
 }
 
 // expression -> term
-// term -> primary ("+" primary)*
+// term -> primary (("+" | "-") primary)*
 // primary -> NUMBER;
 
 Token* token;
@@ -405,6 +413,8 @@ Node* term() {
   for (;;) {
     if (match(TK_PLUS)) {
       node = new_node(ND_ADD, node, primary());
+    } else if (match(TK_MINUS)) {
+      node = new_node(ND_MINUS, node, primary());
     } else {
       return node;
     }
