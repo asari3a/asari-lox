@@ -655,12 +655,14 @@ static void run(char* source) {
   token = head.next;
   Node* node = expression();
 
-  // --- 構文木の表示 ---
+// --- 構文木の表示 ---
+#ifdef DEBUG
   print_ast(node);
+#endif
 
   // --- 評価（ツリーウォーク）---
   Value result = eval(node);
-  if (result.type == VAL_NUM) printf("Result: %lf\n", result.num);
+  if (result.type == VAL_NUM) printf("%lf\n", result.num);
 }
 
 static void runFile(char* path) {
