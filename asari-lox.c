@@ -56,6 +56,8 @@ typedef enum {
   ND_MUL,    // *
   ND_DIV,    // /
   ND_NEG,    // 単項 -
+  ND_LT,     // <
+  ND_LE,     // <=
   ND_NUM     // 数値
 } NodeKind;
 
@@ -400,12 +402,28 @@ static void print_ast(Node* node) {
       print_ast(node->lhs);
       printf(")");
       break;
+    case ND_LT:
+      printf("(< ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
+    case ND_LE:
+      printf("(<= ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
     default:
       printf("(unknown)");
   }
 }
 
-// expression -> term
+// expression -> equality
+// equality -> comparison
+// comparison -> term ( ">" | ">=" | "<" | "<=" ) term)*
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
 // unary -> "-" unary | primary
@@ -414,6 +432,8 @@ static void print_ast(Node* node) {
 Token* token;
 
 Node* expression();
+Node* equality();
+Node* comparison();
 Node* term();
 Node* factor();
 Node* unary();
@@ -430,7 +450,26 @@ bool match(TokenType type) {
 
 bool expect(TokenType type) { return token->type == type; }
 
-Node* expression() { return term(); }
+Node* expression() { return equality(); }
+
+Node* equality() { return comparison(); }
+
+Node* comparison() {
+  Node* node = term();
+  for (;;) {
+    if (match(TK_GREATER)) {
+      node = new_node(ND_LT, term(), node);
+    } else if (match(TK_GREATER_EQUAL)) {
+      node = new_node(ND_LE, term(), node);
+    } else if (match(TK_LESS)) {
+      node = new_node(ND_LT, node, term());
+    } else if (match(TK_LESS_EQUAL)) {
+      node = new_node(ND_LE, node, term());
+    } else {
+      return node;
+    }
+  }
+}
 
 Node* term() {
   Node* node = factor();
