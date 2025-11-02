@@ -70,7 +70,7 @@ struct Node {
   double val;
 };
 
-Token head, *tok;
+Token head;
 
 Token* addToken(Token* pos, TokenType type, char* start, size_t len) {
   Token* token = (Token*)calloc(1, sizeof(Token));
@@ -353,9 +353,80 @@ Node* new_node_num(double val) {
   return node;
 }
 
+// pre-orderで深さ優先探索（？）すれば、S式らしくなるだろう
+static void print_ast(Node* node) {
+  if (!node) {
+    printf("nil");
+    return;
+  }
+
+  switch (node->kind) {
+    case ND_NUM:
+      printf("%lf", node->val);
+      break;
+    case ND_ADD:
+      printf("(+ ");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
+    default:
+      printf("(unknown)");
+  }
+}
+
+// expression -> term
+// term -> primary ("+" primary)*
+// primary -> NUMBER;
+
+Token* token;
+
+Node* expression();
+Node* term();
+Node* primary();
+
+bool match(TokenType type) {
+  if (token->type != type) {
+    return false;
+  }
+
+  token = token->next;
+  return true;
+}
+
+bool expect(TokenType type) { return token->type == type; }
+
+Node* expression() { return term(); }
+
+Node* term() {
+  Node* node = primary();
+
+  for (;;) {
+    if (match(TK_PLUS)) {
+      node = new_node(ND_ADD, node, primary());
+    } else {
+      return node;
+    }
+  }
+}
+
+Node* primary() {
+  if (expect(TK_NUMBER)) {
+    double val = strtod(token->lexeme, NULL);
+    token = token->next;
+    return new_node_num(val);
+  }
+}
+
 static void run(char* source) {
   // --- トークナイズ ---
   scanTokens(source);
+
+  // -- パース ---
+  token = head.next;
+  Node* node = expression();
+  print_ast(node);
 
   for (Token* p = head.next; p != NULL && p->type != TK_EOF; p = p->next) {
     if (p != head.next) printf(" ");
@@ -394,12 +465,10 @@ static void runFile(char* path) {
 }
 
 static void runPrompt() {
-  // ToDO: 空白文字があるとバグる
   char buf[4096] = "";
   for (;;) {
     printf("> ");
-    int n_inputs = scanf("%s", buf);
-    if (n_inputs != 1) break;
+    fgets(buf, sizeof(buf), stdin);
     run(buf);
   }
 }
