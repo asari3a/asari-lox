@@ -379,19 +379,30 @@ static void print_ast(Node* node) {
       print_ast(node->rhs);
       printf(")");
       break;
+    case ND_MUL:
+      printf("(*");
+      print_ast(node->lhs);
+      printf(" ");
+      print_ast(node->rhs);
+      printf(")");
+      break;
     default:
       printf("(unknown)");
   }
 }
 
 // expression -> term
-// term -> primary (("+" | "-") primary)*
+// term -> factor (("+" | "-") factor)*
+// factor -> unary ("*" unary)*
+// unary -> primary
 // primary -> NUMBER;
 
 Token* token;
 
 Node* expression();
 Node* term();
+Node* factor();
+Node* unary();
 Node* primary();
 
 bool match(TokenType type) {
@@ -408,18 +419,32 @@ bool expect(TokenType type) { return token->type == type; }
 Node* expression() { return term(); }
 
 Node* term() {
-  Node* node = primary();
+  Node* node = factor();
 
   for (;;) {
     if (match(TK_PLUS)) {
-      node = new_node(ND_ADD, node, primary());
+      node = new_node(ND_ADD, node, factor());
     } else if (match(TK_MINUS)) {
-      node = new_node(ND_MINUS, node, primary());
+      node = new_node(ND_MINUS, node, factor());
     } else {
       return node;
     }
   }
 }
+
+Node* factor() {
+  Node* node = unary();
+
+  for (;;) {
+    if (match(TK_STAR)) {
+      node = new_node(ND_MUL, node, unary());
+    } else {
+      return node;
+    }
+  }
+}
+
+Node* unary() { return primary(); }
 
 Node* primary() {
   if (expect(TK_NUMBER)) {
