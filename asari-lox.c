@@ -60,7 +60,7 @@ struct Token {
   TokenType type;
   Token* next;
   char* lexeme;
-  void* literal;
+  size_t length;
 };
 
 struct Node {
@@ -76,6 +76,7 @@ Token* addToken(Token* pos, TokenType type, char* start, size_t len) {
   Token* token = (Token*)calloc(1, sizeof(Token));
   token->type = type;
   token->next = NULL;
+  token->length = len;
   token->lexeme = calloc(len + 1, sizeof(char));
   memcpy(token->lexeme, start, len);
   token->lexeme[len] = '\0';
@@ -356,13 +357,41 @@ static void run(char* source) {
   // --- トークナイズ ---
   scanTokens(source);
 
-  for (Token* p = head.next; p != NULL; p = p->next) {
+  for (Token* p = head.next; p != NULL && p->type != TK_EOF; p = p->next) {
+    if (p != head.next) printf(" ");
     printf("%s", p->lexeme);
   }
   printf("\n");
 }
 
-static void runFile(char* path) { run(path); }
+static void runFile(char* path) {
+  FILE* fp = fopen(path, "r");
+  if (fp == NULL) {
+    fprintf(stderr, "ファイルを開けませんでした: %s\n", path);
+    exit(EX_IOERR);
+  }
+
+  fseek(fp, 0L, SEEK_END);
+  size_t file_size = ftell(fp);
+  rewind(fp);
+
+  char* buf = (char*)calloc(file_size + 1, sizeof(char));
+  if (buf == NULL) {
+    fprintf(stderr, "バッファの確保に失敗しました: %s\n", path);
+    exit(EX_IOERR);
+  }
+
+  size_t n_read = fread(buf, sizeof(char), file_size, fp);
+  if (n_read < file_size) {
+    fprintf(stderr, "ファイルの読み取りに失敗しました: %s\n", path);
+    exit(EX_IOERR);
+  }
+
+  buf[n_read] = '\0';
+  fclose(fp);
+
+  run(buf);
+}
 
 static void runPrompt() {
   // ToDO: 空白文字があるとバグる
