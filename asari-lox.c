@@ -55,6 +55,7 @@ typedef enum {
   ND_MINUS,  // -
   ND_MUL,    // *
   ND_DIV,    // /
+  ND_NEG,    // 単項 -
   ND_NUM     // 数値
 } NodeKind;
 
@@ -394,6 +395,11 @@ static void print_ast(Node* node) {
       print_ast(node->rhs);
       printf(")");
       break;
+    case ND_NEG:
+      printf("(- ");
+      print_ast(node->lhs);
+      printf(")");
+      break;
     default:
       printf("(unknown)");
   }
@@ -402,7 +408,7 @@ static void print_ast(Node* node) {
 // expression -> term
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
-// unary -> primary
+// unary -> "-" unary | primary
 // primary -> NUMBER;
 
 Token* token;
@@ -454,7 +460,12 @@ Node* factor() {
   }
 }
 
-Node* unary() { return primary(); }
+Node* unary() {
+  if (match(TK_MINUS)) {
+    return new_node(ND_NEG, unary(), NULL);
+  }
+  return primary();
+}
 
 Node* primary() {
   if (expect(TK_NUMBER)) {
