@@ -630,11 +630,26 @@ static Value value_num(double val) {
   return (Value){.type = VAL_NUM, .num = val};
 }
 
+static Value value_str(char* str) {
+  return (Value){.type = VAL_STRING, .str = str};
+}
+
+static Value value_bool(bool val) {
+  return (Value){.type = VAL_BOOL, .boolean = val};
+}
+
+static Value value_nil() { return (Value){.type = VAL_NIL}; }
+
 static Value eval(Node* node) {
   switch (node->kind) {
     case ND_NUM:
       return value_num(node->val);
-      break;
+
+    case ND_STR:
+      return value_str(node->sval);
+
+    case ND_BOOL:
+      return value_bool(node->bval);
 
     case ND_ADD:
       Value lval = eval(node->lhs);
@@ -662,7 +677,12 @@ static void run(char* source) {
 
   // --- 評価（ツリーウォーク）---
   Value result = eval(node);
-  if (result.type == VAL_NUM) printf("%lf\n", result.num);
+  if (result.type == VAL_NUM)
+    printf("%lf\n", result.num);
+  else if (result.type == VAL_STRING)
+    printf("%s\n", result.str);
+  else if (result.type == VAL_BOOL)
+    printf("%d\n", result.boolean);
 }
 
 static void runFile(char* path) {
