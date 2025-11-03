@@ -8,6 +8,8 @@
 typedef struct Token Token;
 typedef struct Node Node;
 typedef struct Value Value;
+typedef struct Entry Entry;
+typedef struct Env Env;
 
 typedef enum {
   TK_LEFT_PAREN,     // (
@@ -52,23 +54,25 @@ typedef enum {
 } TokenType;
 
 typedef enum {
-  ND_ADD,         // +
-  ND_MINUS,       // -
-  ND_MUL,         // *
-  ND_DIV,         // /
-  ND_NEG,         // 単項 -
-  ND_LT,          // <
-  ND_LE,          // <=
-  ND_EQ,          // ==
-  ND_NE,          // !=
-  ND_BANG,        // !
-  ND_NUM,         // 数値
-  ND_STR,         // 文字列
-  ND_BOOL,        // True, False
-  ND_PRINT_STMT,  // print文
-  ND_EXPR_STMT,   // 式文
-  ND_PROGRAM,     // プログラム
-  ND_NIL,         // nil
+  ND_ADD,          // +
+  ND_MINUS,        // -
+  ND_MUL,          // *
+  ND_DIV,          // /
+  ND_NEG,          // 単項 -
+  ND_LT,           // <
+  ND_LE,           // <=
+  ND_EQ,           // ==
+  ND_NE,           // !=
+  ND_BANG,         // !
+  ND_NUM,          // 数値
+  ND_STR,          // 文字列
+  ND_BOOL,         // True, False
+  ND_PRINT_STMT,   // print文
+  ND_EXPR_STMT,    // 式文
+  ND_PROGRAM,      // プログラム
+  ND_DECLARATION,  // 変数宣言
+  ND_IDENTIFIER,   // 識別子
+  ND_NIL,          // nil
 } NodeKind;
 
 typedef enum {
@@ -104,7 +108,38 @@ struct Value {
   };
 };
 
+struct Entry {
+  char* key;
+  Value value;
+  Entry* next;
+};
+
+struct Env {
+  Entry* head;
+};
+
 Token head;
+
+Env global = {0};
+
+void env_define(Env* env, char* key, Value v) {
+  Entry* e = (Entry*)calloc(1, sizeof(Entry));
+  e->key = (char*)calloc(strlen(key) + 1, sizeof(char));
+  strcpy(e->key, key);
+  e->value = v;
+  e->next = env->head;
+  env->head = e;
+}
+
+Value env_get(Env* env, char* key) {
+  for (Entry* e = env->head; e != NULL; e = e->next) {
+    if (strlen(e->key) == strlen(key) && strcmp(e->key, key) == 0) {
+      return e->value;
+    }
+  }
+  fprintf(stderr, "未定義の変数: %s\n", key);
+  exit(EX_DATAERR);
+}
 
 Token* addToken(Token* pos, TokenType type, char* start, size_t len) {
   Token* token = (Token*)calloc(1, sizeof(Token));
@@ -498,7 +533,9 @@ static void print_ast(Node* node) {
 }
 #endif
 
-// program -> statement* EOF
+// program -> declaration* EOF
+// declaration -> varDecl | statement
+// varDecl -> "var" IDENTIFIER ( "=" expression )? ";"
 // statement -> exprStmt | printStmt
 // exprStmt -> expression ";"
 // printStmt -> "print" expression ";"
@@ -513,6 +550,8 @@ static void print_ast(Node* node) {
 Token* token;
 
 Node* program();
+Node* declaration();
+Node* varDecl();
 Node* statement();
 Node* exprStmt();
 Node* printStmt();
@@ -541,7 +580,7 @@ Node* program() {
   // cur->next = NULL;
 
   while (token->type != TK_EOF) {
-    cur->next = statement();
+    cur->next = declaration();
     cur = cur->next;
   }
 
@@ -549,6 +588,33 @@ Node* program() {
   node->kind = ND_PROGRAM;
   node->lhs = head_node.next;
   return node;
+}
+
+Node* declaration() {
+  if (match(TK_VAR)) {
+    return varDecl();
+  }
+  return statement();
+}
+
+Node* varDecl() {
+  if (!expect(TK_IDENTIFIER)) {
+    fprintf(stderr, "変数名が必要です。\n");
+    exit(74);
+  }
+  char* val_name = token->lexeme;
+  token = token->next;
+  Node* node = NULL;
+  if (match(TK_EQUAL)) {
+    node = expression();
+  }
+  if (!match(TK_SEMICOLON)) {
+    fprintf(stderr, "セミコロンが必要です。\n");
+    exit(74);
+  }
+  Node* variable_node = new_node(ND_DECLARATION, node, NULL);
+  variable_node->sval = val_name;
+  return variable_node;
 }
 
 Node* statement() {
@@ -671,6 +737,7 @@ Node* primary() {
   }
 
   if (expect(TK_NIL)) {
+    token = token->next;
     return new_node_nil();
   }
 
@@ -682,6 +749,16 @@ Node* primary() {
 
     fprintf(stderr, "式が括弧で閉じていません。\n");
     exit(EX_DATAERR);
+  }
+
+  if (expect(TK_IDENTIFIER)) {
+    char* name = token->lexeme;
+    token = token->next;
+
+    Node* node = (Node*)calloc(1, sizeof(Node));
+    node->kind = ND_IDENTIFIER;
+    node->sval = name;
+    return node;
   }
 }
 
@@ -760,6 +837,17 @@ static Value eval(Node* node) {
         printf("nil\n");
         break;
       }
+      return value_nil();
+    }
+
+    case ND_DECLARATION: {
+      Value v = node->lhs ? eval(node->lhs) : value_nil();
+      env_define(&global, node->sval, v);
+      return value_nil();
+    }
+
+    case ND_IDENTIFIER: {
+      return env_get(&global, node->sval);
     }
 
     case ND_NUM:
@@ -770,6 +858,9 @@ static Value eval(Node* node) {
 
     case ND_BOOL:
       return value_bool(node->bval);
+
+    case ND_NIL:
+      return value_nil();
 
     case ND_NEG: {
       Value lval = eval(node->lhs);
