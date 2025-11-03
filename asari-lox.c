@@ -72,6 +72,7 @@ typedef enum {
   ND_PROGRAM,      // プログラム
   ND_DECLARATION,  // 変数宣言
   ND_IDENTIFIER,   // 識別子
+  ND_ASSIGN,       // 代入
   ND_NIL,          // nil
 } NodeKind;
 
@@ -129,6 +130,16 @@ void env_define(Env* env, char* key, Value v) {
   e->value = v;
   e->next = env->head;
   env->head = e;
+}
+
+bool env_assign(Env* env, char* key, Value v) {
+  for (Entry* e = env->head; e != NULL; e = e->next) {
+    if (strlen(e->key) == strlen(key) && strcmp(e->key, key) == 0) {
+      e->value = v;
+      return true;
+    }
+  }
+  return false;
 }
 
 Value env_get(Env* env, char* key) {
@@ -539,15 +550,14 @@ static void print_ast(Node* node) {
 // statement -> exprStmt | printStmt
 // exprStmt -> expression ";"
 // printStmt -> "print" expression ";"
-// expression -> equality
+// expression -> assignment
+// assignment -> IDENTIFIER "=" assignment | equality
 // equality -> comparison ( ( "==" | "!=" ) comparison )*
 // comparison -> term ( ">" | ">=" | "<" | "<=" ) term)*
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
 // unary -> ( "-" | "!" ) unary | primary
 // primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")";
-
-Token* token;
 
 Node* program();
 Node* declaration();
@@ -556,12 +566,15 @@ Node* statement();
 Node* exprStmt();
 Node* printStmt();
 Node* expression();
+Node* assignment();
 Node* equality();
 Node* comparison();
 Node* term();
 Node* factor();
 Node* unary();
 Node* primary();
+
+Token* token;
 
 bool match(TokenType type) {
   if (token->type != type) {
@@ -642,7 +655,23 @@ Node* exprStmt() {
   return new_node(ND_EXPR_STMT, node, NULL);
 }
 
-Node* expression() { return equality(); }
+Node* expression() { return assignment(); }
+
+Node* assignment() {
+  Node* node = equality();
+
+  if (match(TK_EQUAL)) {
+    Node* value = assignment();
+
+    if (node->kind != ND_IDENTIFIER) {
+      fprintf(stderr, "無効な代入先です\n");
+      exit(EX_DATAERR);
+    }
+    return new_node(ND_ASSIGN, node, value);
+  }
+
+  return node;
+}
 
 Node* equality() {
   Node* node = comparison();
@@ -848,6 +877,16 @@ static Value eval(Node* node) {
 
     case ND_IDENTIFIER: {
       return env_get(&global, node->sval);
+    }
+
+    case ND_ASSIGN: {
+      char* name = node->lhs->sval;
+      Value v = eval(node->rhs);
+      if (!env_assign(&global, name, v)) {
+        fprintf(stderr, "未定義の変数%sに代入しようとしました。\n", name);
+        exit(EX_DATAERR);
+      }
+      return v;
     }
 
     case ND_NUM:
