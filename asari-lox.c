@@ -667,6 +667,11 @@ static Value eval(Node* node) {
     case ND_BOOL:
       return value_bool(node->bval);
 
+    case ND_NEG: {
+      Value lval = eval(node->lhs);
+      return value_num(-lval.num);
+    }
+
     case ND_ADD: {
       Value lval = eval(node->lhs);
       Value rval = eval(node->rhs);
