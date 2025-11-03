@@ -677,6 +677,20 @@ static Value eval(Node* node) {
       Value rval = eval(node->rhs);
       if (lval.type == VAL_NUM && rval.type == VAL_NUM) {
         return value_num(lval.num + rval.num);
+      } else if (lval.type == VAL_STRING && rval.type == VAL_STRING) {
+        size_t len1 = strlen(lval.str);
+        size_t len2 = strlen(rval.str);
+        char* buf = (char*)calloc(len1 + len2 + 1, sizeof(char));
+        if (!buf) {
+          fprintf(stderr, "メモリ確保に失敗しました。\n");
+          exit(74);
+        }
+        strcpy(buf, lval.str);
+        strcat(buf, rval.str);
+        return value_str(buf);
+      } else {
+        fprintf(stderr, "+は数値同士か、文字列同士以外に使えません。\n");
+        exit(74);
       }
     }
 
