@@ -698,16 +698,31 @@ static Value eval(Node* node) {
         return value_num(lval.num / rval.num);
       }
     }
+
     case ND_EQ: {
       Value lval = eval(node->lhs);
       Value rval = eval(node->rhs);
       return value_bool(is_equal(lval, rval));
     }
+
     case ND_NE: {
       Value lval = eval(node->lhs);
       Value rval = eval(node->rhs);
       return value_bool(!is_equal(lval, rval));
     }
+
+    case ND_LT: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      return value_bool(lval.num < rval.num);
+    }
+
+    case ND_LE: {
+      Value lval = eval(node->lhs);
+      Value rval = eval(node->rhs);
+      return value_bool(lval.num <= rval.num);
+    }
+
     default:
       break;
   }
@@ -728,12 +743,18 @@ static void run(char* source) {
 
   // --- 評価（ツリーウォーク）---
   Value result = eval(node);
+
+  // --- 結果の表示 ---
   if (result.type == VAL_NUM)
     printf("%lf\n", result.num);
   else if (result.type == VAL_STRING)
     printf("%s\n", result.str);
-  else if (result.type == VAL_BOOL)
-    printf("%d\n", result.boolean);
+  else if (result.type == VAL_BOOL) {
+    if (result.boolean)
+      printf("true\n");
+    else
+      printf("false\n");
+  }
 }
 
 static void runFile(char* path) {
