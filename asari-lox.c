@@ -75,6 +75,8 @@ typedef enum {
   ND_ASSIGN,       // 代入
   ND_BLOCK,        // {}
   ND_IF,           // if
+  ND_OR,           // or
+  ND_AND,          // and
   ND_NIL,          // nil
 } NodeKind;
 
@@ -571,7 +573,9 @@ static void print_ast(Node* node) {
 // printStmt -> "print" expression ";"
 // blockStmt -> "{" declaration* "}"
 // expression -> assignment
-// assignment -> IDENTIFIER "=" assignment | equality
+// assignment -> IDENTIFIER "=" assignment | logic_or
+// logic_or -> logic_and ( "or" logic_and )*
+// logic_and -> equality ( "and" equality )*
 // equality -> comparison ( ( "==" | "!=" ) comparison )*
 // comparison -> term ( ">" | ">=" | "<" | "<=" ) term)*
 // term -> factor (("+" | "-") factor)*
@@ -589,6 +593,8 @@ Node* printStmt();
 Node* blockStmt();
 Node* expression();
 Node* assignment();
+Node* logic_or();
+Node* logic_and();
 Node* equality();
 Node* comparison();
 Node* term();
@@ -718,10 +724,10 @@ Node* blockStmt() {
 Node* expression() { return assignment(); }
 
 Node* assignment() {
-  Node* node = equality();
+  Node* node = logic_or();
 
   if (match(TK_EQUAL)) {
-    Node* value = assignment();
+    Node* value = logic_or();
 
     if (node->kind != ND_IDENTIFIER) {
       fprintf(stderr, "無効な代入先です\n");
@@ -730,6 +736,22 @@ Node* assignment() {
     return new_node(ND_ASSIGN, node, value);
   }
 
+  return node;
+}
+
+Node* logic_or() {
+  Node* node = logic_and();
+  while (match(TK_OR)) {
+    node = new_node(ND_OR, node, logic_and());
+  }
+  return node;
+}
+
+Node* logic_and() {
+  Node* node = equality();
+  while (match(TK_AND)) {
+    node = new_node(ND_AND, node, equality());
+  }
   return node;
 }
 
@@ -1054,6 +1076,18 @@ static Value eval(Node* node) {
       Value lval = eval(node->lhs);
       Value rval = eval(node->rhs);
       return value_bool(lval.num <= rval.num);
+    }
+
+    case ND_OR: {
+      Value lval = eval(node->lhs);
+      if (is_truthy(lval)) return lval;
+      return eval(node->rhs);
+    }
+
+    case ND_AND: {
+      Value lval = eval(node->lhs);
+      if (!is_truthy(lval)) return lval;
+      return eval(node->rhs);
     }
 
     default:
