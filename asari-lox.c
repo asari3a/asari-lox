@@ -568,8 +568,9 @@ static void print_ast(Node* node) {
 // program -> declaration* EOF
 // declaration -> varDecl | statement
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement -> exprStmt | ifStmt | printStmt | whileStmt | blockStmt
+// statement -> exprStmt | forStmt | ifStmt | printStmt | whileStmt | blockStmt
 // exprStmt -> expression ";"
+// forStmt -> "for" "(" ( varDecl | exprStmt | ";") expression? ";" expression? ")" statement
 // ifStmt -> "if" "(" expression ")" statement ( "else" statement )?
 // printStmt -> "print" expression ";"
 // whileStmt -> "while" "(" expression ")" statement
@@ -590,6 +591,7 @@ Node* declaration();
 Node* varDecl();
 Node* statement();
 Node* exprStmt();
+Node* forStmt();
 Node* ifStmt();
 Node* printStmt();
 Node* whileStmt();
@@ -664,6 +666,7 @@ Node* statement() {
   if (match(TK_IF)) return ifStmt();
   if (match(TK_PRINT)) return printStmt();
   if (match(TK_WHILE)) return whileStmt();
+  if (match(TK_FOR)) return forStmt();
   if (match(TK_LEFT_BRACE)) return blockStmt();
   return exprStmt();
 }
@@ -706,6 +709,63 @@ Node* exprStmt() {
     exit(74);
   }
   return new_node(ND_EXPR_STMT, node, NULL);
+}
+
+Node* forStmt() {
+  if (!match(TK_LEFT_PAREN)) {
+    fprintf(stderr, "()が必要です。\n");
+    exit(74);
+  }
+
+  // 初期化文
+  Node* init_statement = NULL;
+  if (match(TK_SEMICOLON)) {
+  } else if (match(TK_VAR)) {
+    init_statement = varDecl();
+  } else {
+    init_statement = exprStmt();
+  }
+
+  // 条件
+  Node* condition = NULL;
+  if (match(TK_SEMICOLON)) {
+    condition = new_node(ND_BOOL, NULL, NULL);
+    condition->bval = true;
+  } else {
+    condition = expression();
+    if (!match(TK_SEMICOLON)) {
+      fprintf(stderr, "セミコロンが必要です。\n");
+      exit(EX_DATAERR);
+    }
+  }
+
+  // 増分
+  Node* increase = NULL;
+  if (!expect(TK_RIGHT_PAREN)) {
+    increase = expression();
+  }
+  if (!(match(TK_RIGHT_PAREN))) {
+    fprintf(stderr, ")が必要です。\n");
+    exit(EX_DATAERR);
+  }
+
+  // ループする文
+  Node* body = statement();
+
+  if (increase) {
+    Node* inc_node = new_node(ND_EXPR_STMT, increase, NULL);
+    Node* blk = new_node(ND_BLOCK, body, NULL);
+    body->next = inc_node;
+    body = blk;
+  }
+
+  Node* while_node = new_node(ND_WHILE, condition, body);
+
+  if (init_statement) {
+    init_statement->next = while_node;
+    return new_node(ND_BLOCK, init_statement, NULL);
+  }
+  return while_node;
 }
 
 Node* whileStmt() {
