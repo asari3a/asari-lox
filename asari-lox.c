@@ -403,6 +403,7 @@ Node* new_node_nil() {
 }
 
 // pre-orderで深さ優先探索（？）すれば、S式らしくなるだろう
+#ifdef DEBUG
 static void print_ast(Node* node) {
   if (!node) {
     printf("nil");
@@ -490,6 +491,7 @@ static void print_ast(Node* node) {
       printf("(unknown)");
   }
 }
+#endif
 
 // expression -> equality
 // equality -> comparison ( ( "==" | "!=" ) comparison )*
