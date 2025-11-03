@@ -77,6 +77,7 @@ typedef enum {
   ND_IF,           // if
   ND_OR,           // or
   ND_AND,          // and
+  ND_WHILE,        // while
   ND_NIL,          // nil
 } NodeKind;
 
@@ -567,10 +568,11 @@ static void print_ast(Node* node) {
 // program -> declaration* EOF
 // declaration -> varDecl | statement
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement -> exprStmt | ifStmt | printStmt | blockStmt
+// statement -> exprStmt | ifStmt | printStmt | whileStmt | blockStmt
 // exprStmt -> expression ";"
 // ifStmt -> "if" "(" expression ")" statement ( "else" statement )?
 // printStmt -> "print" expression ";"
+// whileStmt -> "while" "(" expression ")" statement
 // blockStmt -> "{" declaration* "}"
 // expression -> assignment
 // assignment -> IDENTIFIER "=" assignment | logic_or
@@ -590,6 +592,7 @@ Node* statement();
 Node* exprStmt();
 Node* ifStmt();
 Node* printStmt();
+Node* whileStmt();
 Node* blockStmt();
 Node* expression();
 Node* assignment();
@@ -660,6 +663,7 @@ Node* varDecl() {
 Node* statement() {
   if (match(TK_IF)) return ifStmt();
   if (match(TK_PRINT)) return printStmt();
+  if (match(TK_WHILE)) return whileStmt();
   if (match(TK_LEFT_BRACE)) return blockStmt();
   return exprStmt();
 }
@@ -702,6 +706,21 @@ Node* exprStmt() {
     exit(74);
   }
   return new_node(ND_EXPR_STMT, node, NULL);
+}
+
+Node* whileStmt() {
+  if (!match(TK_LEFT_PAREN)) {
+    fprintf(stderr, "whileの後は()が必要\n");
+    exit(EX_DATAERR);
+  }
+  Node* condition = expression();
+
+  if (!match(TK_RIGHT_PAREN)) {
+    fprintf(stderr, "while(condition)の後は{}が必要\n");
+    exit(EX_DATAERR);
+  }
+
+  return new_node(ND_WHILE, condition, statement());
 }
 
 Node* blockStmt() {
@@ -937,6 +956,13 @@ static Value eval(Node* node) {
 
     case ND_EXPR_STMT: {
       eval(node->lhs);
+      return value_nil();
+    }
+
+    case ND_WHILE: {
+      while (is_truthy(eval(node->lhs))) {
+        eval(node->rhs);
+      }
       return value_nil();
     }
 
