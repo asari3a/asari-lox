@@ -52,19 +52,22 @@ typedef enum {
 } TokenType;
 
 typedef enum {
-  ND_ADD,    // +
-  ND_MINUS,  // -
-  ND_MUL,    // *
-  ND_DIV,    // /
-  ND_NEG,    // 単項 -
-  ND_LT,     // <
-  ND_LE,     // <=
-  ND_EQ,     // ==
-  ND_NE,     // !=
-  ND_NUM,    // 数値
-  ND_STR,    // 文字列
-  ND_BOOL,   // True, False
-  ND_NIL,    // nil
+  ND_ADD,         // +
+  ND_MINUS,       // -
+  ND_MUL,         // *
+  ND_DIV,         // /
+  ND_NEG,         // 単項 -
+  ND_LT,          // <
+  ND_LE,          // <=
+  ND_EQ,          // ==
+  ND_NE,          // !=
+  ND_NUM,         // 数値
+  ND_STR,         // 文字列
+  ND_BOOL,        // True, False
+  ND_PRINT_STMT,  // print文
+  ND_EXPR_STMT,   // 式文
+  ND_PROGRAM,     // プログラム
+  ND_NIL,         // nil
 } NodeKind;
 
 typedef enum {
@@ -85,6 +88,7 @@ struct Node {
   NodeKind kind;
   Node* lhs;
   Node* rhs;
+  Node* next;
   double val;
   char* sval;
   bool bval;
@@ -493,6 +497,10 @@ static void print_ast(Node* node) {
 }
 #endif
 
+// program -> statement* EOF
+// statement -> exprStmt | printStmt
+// exprStmt -> expression ";"
+// printStmt -> "print" expression ";"
 // expression -> equality
 // equality -> comparison ( ( "==" | "!=" ) comparison )*
 // comparison -> term ( ">" | ">=" | "<" | "<=" ) term)*
@@ -503,6 +511,10 @@ static void print_ast(Node* node) {
 
 Token* token;
 
+Node* program();
+Node* statement();
+Node* exprStmt();
+Node* printStmt();
 Node* expression();
 Node* equality();
 Node* comparison();
@@ -521,6 +533,47 @@ bool match(TokenType type) {
 }
 
 bool expect(TokenType type) { return token->type == type; }
+
+Node* program() {
+  Node head_node = {0};
+  Node* cur = &head_node;
+  // cur->next = NULL;
+
+  while (token->type != TK_EOF) {
+    cur->next = statement();
+    cur = cur->next;
+  }
+
+  Node* node = (Node*)calloc(1, sizeof(Node));
+  node->kind = ND_PROGRAM;
+  node->lhs = head_node.next;
+  return node;
+}
+
+Node* statement() {
+  if (match(TK_PRINT)) {
+    return printStmt();
+  }
+  return exprStmt();
+}
+
+Node* printStmt() {
+  Node* node = expression();
+  if (!match(TK_SEMICOLON)) {
+    fprintf(stderr, "セミコロンが必要です。\n");
+    exit(74);
+  }
+  return new_node(ND_PRINT_STMT, node, NULL);
+}
+
+Node* exprStmt() {
+  Node* node = expression();
+  if (!match(TK_SEMICOLON)) {
+    fprintf(stderr, "セミコロンが必要です。\n");
+    exit(74);
+  }
+  return new_node(ND_EXPR_STMT, node, NULL);
+}
 
 Node* expression() { return equality(); }
 
@@ -660,6 +713,40 @@ static bool is_equal(Value a, Value b) {
 
 static Value eval(Node* node) {
   switch (node->kind) {
+    case ND_PROGRAM: {
+      Node* statement = node->lhs;
+      while (statement) {
+        eval(statement);
+        statement = statement->next;
+      }
+      return value_nil();
+    }
+
+    case ND_EXPR_STMT: {
+      eval(node->lhs);
+      return value_nil();
+    }
+
+    case ND_PRINT_STMT: {
+      Value val = eval(node->lhs);
+      if (val.type == VAL_NUM) {
+        printf("%lf\n", val.num);
+        break;
+      }
+      if (val.type == VAL_STRING) {
+        printf("%s\n", val.str);
+        break;
+      }
+      if (val.type == VAL_BOOL) {
+        printf(val.boolean ? "true\n" : "false\n");
+        break;
+      }
+      if (val.type == VAL_NIL) {
+        printf("nil\n");
+        break;
+      }
+    }
+
     case ND_NUM:
       return value_num(node->val);
 
@@ -755,7 +842,7 @@ static void run(char* source) {
 
   // -- パース ---
   token = head.next;
-  Node* node = expression();
+  Node* node = program();
 
 // --- 構文木の表示 ---
 #ifdef DEBUG
@@ -763,19 +850,7 @@ static void run(char* source) {
 #endif
 
   // --- 評価（ツリーウォーク）---
-  Value result = eval(node);
-
-  // --- 結果の表示 ---
-  if (result.type == VAL_NUM)
-    printf("%lf\n", result.num);
-  else if (result.type == VAL_STRING)
-    printf("%s\n", result.str);
-  else if (result.type == VAL_BOOL) {
-    if (result.boolean)
-      printf("true\n");
-    else
-      printf("false\n");
-  }
+  eval(node);
 }
 
 static void runFile(char* path) {
