@@ -74,6 +74,7 @@ typedef enum {
   ND_IDENTIFIER,   // 識別子
   ND_ASSIGN,       // 代入
   ND_BLOCK,        // {}
+  ND_IF,           // if
   ND_NIL,          // nil
 } NodeKind;
 
@@ -96,6 +97,7 @@ struct Node {
   Node* lhs;
   Node* rhs;
   Node* next;
+  Node* alt;
   double val;
   char* sval;
   bool bval;
@@ -563,8 +565,9 @@ static void print_ast(Node* node) {
 // program -> declaration* EOF
 // declaration -> varDecl | statement
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement -> exprStmt | printStmt | blockStmt
+// statement -> exprStmt | ifStmt | printStmt | blockStmt
 // exprStmt -> expression ";"
+// ifStmt -> "if" "(" expression ")" statement ( "else" statement )?
 // printStmt -> "print" expression ";"
 // blockStmt -> "{" declaration* "}"
 // expression -> assignment
@@ -581,6 +584,7 @@ Node* declaration();
 Node* varDecl();
 Node* statement();
 Node* exprStmt();
+Node* ifStmt();
 Node* printStmt();
 Node* blockStmt();
 Node* expression();
@@ -608,7 +612,6 @@ bool expect(TokenType type) { return token->type == type; }
 Node* program() {
   Node head_node = {0};
   Node* cur = &head_node;
-  // cur->next = NULL;
 
   while (token->type != TK_EOF) {
     cur->next = declaration();
@@ -649,6 +652,7 @@ Node* varDecl() {
 }
 
 Node* statement() {
+  if (match(TK_IF)) return ifStmt();
   if (match(TK_PRINT)) return printStmt();
   if (match(TK_LEFT_BRACE)) return blockStmt();
   return exprStmt();
@@ -661,6 +665,28 @@ Node* printStmt() {
     exit(74);
   }
   return new_node(ND_PRINT_STMT, node, NULL);
+}
+
+Node* ifStmt() {
+  if (!match(TK_LEFT_PAREN)) {
+    fprintf(stderr, "ifの後は()です。\n");
+    exit(EX_DATAERR);
+  }
+  Node* condition = expression();
+  if (!match(TK_RIGHT_PAREN)) {
+    fprintf(stderr, "if文の{}画閉じてません。\n");
+    exit(EX_DATAERR);
+  }
+  Node* then_statement = statement();
+
+  Node* else_statement = NULL;
+  if (match(TK_ELSE)) {
+    else_statement = statement();
+  }
+
+  Node* n = new_node(ND_IF, condition, then_statement);
+  n->alt = else_statement;
+  return n;
 }
 
 Node* exprStmt() {
@@ -873,6 +899,16 @@ static Value eval(Node* node) {
       while (statement) {
         eval(statement);
         statement = statement->next;
+      }
+      return value_nil();
+    }
+
+    case ND_IF: {
+      Value val = eval(node->lhs);
+      if (is_truthy(val)) {
+        eval(node->rhs);
+      } else if (node->alt) {
+        eval(node->alt);
       }
       return value_nil();
     }
