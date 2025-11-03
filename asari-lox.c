@@ -73,6 +73,7 @@ typedef enum {
   ND_DECLARATION,  // 変数宣言
   ND_IDENTIFIER,   // 識別子
   ND_ASSIGN,       // 代入
+  ND_BLOCK,        // {}
   ND_NIL,          // nil
 } NodeKind;
 
@@ -117,11 +118,22 @@ struct Entry {
 
 struct Env {
   Entry* head;
+  Env* enclosing;
 };
 
 Token head;
 
 Env global = {0};
+Env* current_env = &global;
+
+Env* env_push(Env* enclosing) {
+  Env* e = (Env*)calloc(1, sizeof(Env));
+
+  e->enclosing = enclosing;
+  return e;
+}
+
+Env* env_pop(Env* e) { return e->enclosing; }
 
 void env_define(Env* env, char* key, Value v) {
   Entry* e = (Entry*)calloc(1, sizeof(Entry));
@@ -133,19 +145,23 @@ void env_define(Env* env, char* key, Value v) {
 }
 
 bool env_assign(Env* env, char* key, Value v) {
-  for (Entry* e = env->head; e != NULL; e = e->next) {
-    if (strlen(e->key) == strlen(key) && strcmp(e->key, key) == 0) {
-      e->value = v;
-      return true;
+  for (Env* env_ptr = env; env_ptr != NULL; env_ptr = env_ptr->enclosing) {
+    for (Entry* e = env_ptr->head; e != NULL; e = e->next) {
+      if (strlen(e->key) == strlen(key) && strcmp(e->key, key) == 0) {
+        e->value = v;
+        return true;
+      }
     }
   }
   return false;
 }
 
 Value env_get(Env* env, char* key) {
-  for (Entry* e = env->head; e != NULL; e = e->next) {
-    if (strlen(e->key) == strlen(key) && strcmp(e->key, key) == 0) {
-      return e->value;
+  for (Env* env_ptr = env; env_ptr != NULL; env_ptr = env_ptr->enclosing) {
+    for (Entry* e = env_ptr->head; e != NULL; e = e->next) {
+      if (strlen(e->key) == strlen(key) && strcmp(e->key, key) == 0) {
+        return e->value;
+      }
     }
   }
   fprintf(stderr, "未定義の変数: %s\n", key);
@@ -547,9 +563,10 @@ static void print_ast(Node* node) {
 // program -> declaration* EOF
 // declaration -> varDecl | statement
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";"
-// statement -> exprStmt | printStmt
+// statement -> exprStmt | printStmt | blockStmt
 // exprStmt -> expression ";"
 // printStmt -> "print" expression ";"
+// blockStmt -> "{" declaration* "}"
 // expression -> assignment
 // assignment -> IDENTIFIER "=" assignment | equality
 // equality -> comparison ( ( "==" | "!=" ) comparison )*
@@ -565,6 +582,7 @@ Node* varDecl();
 Node* statement();
 Node* exprStmt();
 Node* printStmt();
+Node* blockStmt();
 Node* expression();
 Node* assignment();
 Node* equality();
@@ -631,9 +649,8 @@ Node* varDecl() {
 }
 
 Node* statement() {
-  if (match(TK_PRINT)) {
-    return printStmt();
-  }
+  if (match(TK_PRINT)) return printStmt();
+  if (match(TK_LEFT_BRACE)) return blockStmt();
   return exprStmt();
 }
 
@@ -653,6 +670,23 @@ Node* exprStmt() {
     exit(74);
   }
   return new_node(ND_EXPR_STMT, node, NULL);
+}
+
+Node* blockStmt() {
+  Node head = {0};
+  Node* cur = &head;
+
+  while (!expect(TK_RIGHT_BRACE) && token->type != TK_EOF) {
+    cur->next = declaration();
+    cur = cur->next;
+  }
+
+  if (!match(TK_RIGHT_BRACE)) {
+    fprintf(stderr, "ブロックが、}で閉じてません\n");
+    exit(EX_DATAERR);
+  }
+
+  return new_node(ND_BLOCK, head.next, NULL);
 }
 
 Node* expression() { return assignment(); }
@@ -852,37 +886,42 @@ static Value eval(Node* node) {
       Value val = eval(node->lhs);
       if (val.type == VAL_NUM) {
         printf("%lf\n", val.num);
-        break;
       }
       if (val.type == VAL_STRING) {
         printf("%s\n", val.str);
-        break;
       }
       if (val.type == VAL_BOOL) {
         printf(val.boolean ? "true\n" : "false\n");
-        break;
       }
       if (val.type == VAL_NIL) {
         printf("nil\n");
-        break;
       }
+      return value_nil();
+    }
+
+    case ND_BLOCK: {
+      current_env = env_push(current_env);
+      for (Node* s = node->lhs; s != NULL; s = s->next) {
+        eval(s);
+      }
+      current_env = env_pop(current_env);
       return value_nil();
     }
 
     case ND_DECLARATION: {
       Value v = node->lhs ? eval(node->lhs) : value_nil();
-      env_define(&global, node->sval, v);
+      env_define(current_env, node->sval, v);
       return value_nil();
     }
 
     case ND_IDENTIFIER: {
-      return env_get(&global, node->sval);
+      return env_get(current_env, node->sval);
     }
 
     case ND_ASSIGN: {
       char* name = node->lhs->sval;
       Value v = eval(node->rhs);
-      if (!env_assign(&global, name, v)) {
+      if (!env_assign(current_env, name, v)) {
         fprintf(stderr, "未定義の変数%sに代入しようとしました。\n", name);
         exit(EX_DATAERR);
       }
