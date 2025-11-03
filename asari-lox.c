@@ -61,6 +61,7 @@ typedef enum {
   ND_LE,          // <=
   ND_EQ,          // ==
   ND_NE,          // !=
+  ND_BANG,        // !
   ND_NUM,         // 数値
   ND_STR,         // 文字列
   ND_BOOL,        // True, False
@@ -506,7 +507,7 @@ static void print_ast(Node* node) {
 // comparison -> term ( ">" | ">=" | "<" | "<=" ) term)*
 // term -> factor (("+" | "-") factor)*
 // factor -> unary (("*" | "/") unary)*
-// unary -> "-" unary | primary
+// unary -> ( "-" | "!" ) unary | primary
 // primary -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")";
 
 Token* token;
@@ -640,6 +641,9 @@ Node* unary() {
   if (match(TK_MINUS)) {
     return new_node(ND_NEG, unary(), NULL);
   }
+  if (match(TK_BANG)) {
+    return new_node(ND_BANG, unary(), NULL);
+  }
   return primary();
 }
 
@@ -711,6 +715,17 @@ static bool is_equal(Value a, Value b) {
   }
 }
 
+static bool is_truthy(Value a) {
+  // nilとfalse以外は、true
+  if (a.type == VAL_NIL) return false;
+
+  if (a.type == VAL_BOOL) {
+    return a.boolean;
+  }
+
+  return true;
+}
+
 static Value eval(Node* node) {
   switch (node->kind) {
     case ND_PROGRAM: {
@@ -759,6 +774,11 @@ static Value eval(Node* node) {
     case ND_NEG: {
       Value lval = eval(node->lhs);
       return value_num(-lval.num);
+    }
+
+    case ND_BANG: {
+      Value val = eval(node->lhs);
+      return value_bool(!is_truthy(val));
     }
 
     case ND_ADD: {
